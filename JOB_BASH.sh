@@ -1,6 +1,16 @@
 #!/bin/bash
 
-target_dir="../Angel/files_python/bash/"
+# Target dir to install python bash executables
+
+progname=$(basename $0)
+if [ $# -ne 1 ]; then
+    echo " "
+    echo "Usage: $progname target_dir"
+    echo " "
+    exit 1
+fi
+
+target_dir=$1
 current_dir="$(pwd)"
 
 files=(
