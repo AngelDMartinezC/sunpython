@@ -36,7 +36,7 @@ def hmi_b2ptr(field, inclination, azimuth_dis, bp_output='hmi.Bp_720s.fits',
     from sunpython.fits_work import load_map, writefits
 
     field_data, header, _, bscale, bzero, blank = load_map(
-        field, get_scale=True, astropy_header=True)
+        field, get_scale=True)
 
     # Check if shapes are the same for the maps
     if (
@@ -142,9 +142,9 @@ def hmi_b2ptr(field, inclination, azimuth_dis, bp_output='hmi.Bp_720s.fits',
     # HACK!! This function will probably be changing. Better implementation
     # required.
     # Save Bp, Bt, and Br
-    writefits(bptr[0], header, bp_output, 64, bscale, bzero, blank, save=save)
-    writefits(bptr[1], header, bt_output, 64, bscale, bzero, blank, save=save)
-    writefits(bptr[2], header, br_output, 64, bscale, bzero, blank, save=save)
+    writefits(bptr[0], header, bp_output, 32, bscale, bzero, blank, save=save)
+    writefits(bptr[1], header, bt_output, 32, bscale, bzero, blank, save=save)
+    writefits(bptr[2], header, br_output, 32, bscale, bzero, blank, save=save)
 
     # if return_lonlat:
     #     return bptr, lonlat

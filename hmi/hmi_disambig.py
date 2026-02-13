@@ -32,7 +32,7 @@ def hmi_disambig(azimuth, disambig, method=2, output='azimuth_disambig.fits',
 
     # Load data and scaled scale values
     azimuth_data, azimuth_meta, bitpix, bscale, bzero, blank = load_map(
-        azimuth, set_scale=True)
+        azimuth, get_scale=True)
     disambig_data, _ = load_map(disambig)
 
     azimuth_data = np.asarray(azimuth_data, dtype=float)
