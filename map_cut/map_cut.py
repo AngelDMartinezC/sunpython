@@ -51,7 +51,7 @@ def map_cut(smap, x0, y0, width, height, coord=False):
         return submap
 
 
-def map_cut_box(smap, x0, y0, x1, y1, coord=False):
+def map_cut_box(smap, x0, x1, y0, y1, coord=False):
     '''
     Returns a cropped map inside a rectangular region befined by bottom-left
     and top-right coordinates.
