@@ -70,15 +70,20 @@ def map_cut_box(smap, x0, x1, y0, y1, coord=False):
     sunpy.map.Map
         Cropped map
     '''
-    unit_x = smap.spatial_units.axis1
-    unit_y = smap.spatial_units.axis2
-    x0 = u.Quantity(x0, unit_x)
-    y0 = u.Quantity(y0, unit_y)
-    x1 = u.Quantity(x1, unit_x)
-    y1 = u.Quantity(y1, unit_y)
-    top_right = SkyCoord(x1, y1, frame=smap.coordinate_frame)
-    bottom_left = SkyCoord(x0, y0, frame=smap.coordinate_frame)
-    submap = smap.submap(bottom_left, top_right=top_right)
+    if (x0.unit and y0.unit and x1.unit and y1.unit) is u.pixel:
+        bottom_left = smap.pixel_to_world(x0, y0)
+        top_right = smap.pixel_to_world(x1, y1)
+        submap = smap.submap(bottom_left, top_right=top_right)
+    else:
+        unit_x = smap.spatial_units.axis1
+        unit_y = smap.spatial_units.axis2
+        x0 = u.Quantity(x0, unit_x)
+        y0 = u.Quantity(y0, unit_y)
+        x1 = u.Quantity(x1, unit_x)
+        y1 = u.Quantity(y1, unit_y)
+        top_right = SkyCoord(x1, y1, frame=smap.coordinate_frame)
+        bottom_left = SkyCoord(x0, y0, frame=smap.coordinate_frame)
+        submap = smap.submap(bottom_left, top_right=top_right)
     if coord:
         return submap, bottom_left, top_right
     else:
