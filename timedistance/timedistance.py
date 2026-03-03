@@ -162,7 +162,7 @@ class TimeDistance:
     @property
     def toCartesian(self):
         cartesianImage = self.ptSettings.convertToCartesianImage(
-            self.polarImage)
+            self.polarImage, borderVal=np.nan)
         return cartesianImage
 
     @property
