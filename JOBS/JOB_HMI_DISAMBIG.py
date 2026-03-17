@@ -6,16 +6,53 @@ be written in the directory of the third argument.
 '''
 
 
-def disambiguate(dir_azimuth, dir_disambig,
-                 dir_output='./hmi_azimuth_disambig/', method=1):
+def process_pair(args):
+    i, n_files, name_azi, name_dis, dir_output, method = args
 
     from sunpy.map import Map
     from sunpython.hmi import hmi_disambig
+    from datetime import datetime
+    import os
+
+    map_azi_i = Map(name_azi)
+    map_dis_i = Map(name_dis)
+
+    time_azi = map_azi_i.meta['T_REC']
+    time_dis = map_dis_i.meta['T_REC']
+
+    if time_azi != time_dis:
+        print(f'Time mismatch: {name_azi}')
+        return
+
+    time_core = time_azi[:23].replace('T', '_')
+    dt = datetime.strptime(time_core, '%Y.%m.%d_%H:%M:%S.%f')
+    time_out = dt.strftime('%Y%m%d_%H%M%S')
+
+    observable = 'azimuth_disambig'
+    output_name = f'{dir_output}/hmi.b_720s.{time_out}.{observable}.fits'
+
+    # print(f'Calculating disambiguation for {time_azi}. '
+    #       f'File {i+1} of {n_files}')
+
+    hmi_disambig(
+        map_azi_i,
+        map_dis_i,
+        method=method,
+        output=output_name,
+        save=True
+    )
+
+    return i
+
+
+def disambiguate(dir_azimuth, dir_disambig,
+                 dir_output='./hmi_azimuth_disambig/', method=2,
+                 nproc=None):
+
     import glob
     import os
-    from datetime import datetime
+    from multiprocessing import Pool, cpu_count
 
-    # Create output directory
     os.makedirs(dir_output, exist_ok=True)
 
     list_frames_azi = sorted(glob.glob(f'{dir_azimuth}/hmi*.fits'))
@@ -24,41 +61,74 @@ def disambiguate(dir_azimuth, dir_disambig,
     n_files = len(list_frames_azi)
     print(f'Number of files: {n_files}\n')
 
-    for i in range(len(list_frames_azi)):
-        name_azi = list_frames_azi[i]
-        name_dis = list_frames_dis[i]
+    if nproc is None:
+        nproc = cpu_count()
 
-        # Read maps
-        map_azi_i = Map(name_azi)
-        map_dis_i = Map(name_dis)
+    tasks = [
+        (i, n_files, list_frames_azi[i], list_frames_dis[i], dir_output, method)
+        for i in range(n_files)
+    ]
 
-        # cadence = map_azi_idf.cadence
-        time_azi = map_azi_i.meta['T_REC']
-        time_dis = map_dis_i.meta['T_REC']
+    # with Pool(nproc) as pool:
+    #     pool.map(process_pair, tasks)
+    with Pool(nproc) as pool:
+        for j, _ in enumerate(pool.imap(process_pair, tasks), 1):
+            print(f'Calculating file {j} of {n_files}')
 
-        if time_azi != time_dis:
-            print('Times are not the same. Exiting...')
-            break
 
-        # Now convert the time format for outputting
-        time_core = time_azi[:23]
-
-        # Normalize separator
-        time_core = time_core.replace('T', '_')
-
-        # Parse datetime
-        dt = datetime.strptime(time_core, '%Y.%m.%d_%H:%M:%S.%f')
-
-        # Output format
-        time_out = dt.strftime('%Y%m%d_%H%M%S')
-
-        observable = 'azimuth_disambig'
-        output_name = f'{dir_output}/hmi.b_720s.{time_out}.{observable}.fits'
-        print(f'Calculating disambiguation for {time_azi}. '
-              f'File {i+1} of {n_files}')
-        hmi_disambig(map_azi_i, map_dis_i, method=method, output=output_name,
-                     save=True)
-
+# def disambiguate(dir_azimuth, dir_disambig,
+#                  dir_output='./hmi_azimuth_disambig/', method=1):
+# 
+#     from sunpy.map import Map
+#     from sunpython.hmi import hmi_disambig
+#     import glob
+#     import os
+#     from datetime import datetime
+# 
+#     # Create output directory
+#     os.makedirs(dir_output, exist_ok=True)
+# 
+#     list_frames_azi = sorted(glob.glob(f'{dir_azimuth}/hmi*.fits'))
+#     list_frames_dis = sorted(glob.glob(f'{dir_disambig}/hmi*.fits'))
+# 
+#     n_files = len(list_frames_azi)
+#     print(f'Number of files: {n_files}\n')
+# 
+#     for i in range(len(list_frames_azi)):
+#         name_azi = list_frames_azi[i]
+#         name_dis = list_frames_dis[i]
+# 
+#         # Read maps
+#         map_azi_i = Map(name_azi)
+#         map_dis_i = Map(name_dis)
+# 
+#         # cadence = map_azi_idf.cadence
+#         time_azi = map_azi_i.meta['T_REC']
+#         time_dis = map_dis_i.meta['T_REC']
+# 
+#         if time_azi != time_dis:
+#             print('Times are not the same. Exiting...')
+#             break
+# 
+#         # Now convert the time format for outputting
+#         time_core = time_azi[:23]
+# 
+#         # Normalize separator
+#         time_core = time_core.replace('T', '_')
+# 
+#         # Parse datetime
+#         dt = datetime.strptime(time_core, '%Y.%m.%d_%H:%M:%S.%f')
+# 
+#         # Output format
+#         time_out = dt.strftime('%Y%m%d_%H%M%S')
+# 
+#         observable = 'azimuth_disambig'
+#         output_name = f'{dir_output}/hmi.b_720s.{time_out}.{observable}.fits'
+#         print(f'Calculating disambiguation for {time_azi}. '
+#               f'File {i+1} of {n_files}')
+#         hmi_disambig(map_azi_i, map_dis_i, method=method, output=output_name,
+#                      save=True)
+# 
 
 # ---------------------------------------------------------------------------
 # End of code
@@ -108,13 +178,20 @@ if __name__ == '__main__':
             '-m', '--method',
             type=int,
             choices=[0, 1, 2],
-            default=1,
+            default=2,
             help=(
                 'Bit used for disambiguation: (default: %(default)s)\n'
                 '  0 = potential acute.\n'
                 '  1 = random.\n'
                 '  2 = radial acute.'
             )
+        )
+
+        parser.add_argument(
+            '-n', '--nproc',
+            type=int,
+            default=None,
+            help='Number of CPU cores to use'
         )
 
         return parser.parse_args()
@@ -133,5 +210,7 @@ if __name__ == '__main__':
         args.dir_azimuth,
         args.dir_disambig,
         dir_output=args.dir_output,
-        method=args.method
+        method=args.method,
+        nproc=args.nproc
     )
+

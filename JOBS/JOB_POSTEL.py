@@ -37,7 +37,7 @@ def _postel_worker(args):
 
 
 def postel(directory, crln, crlt, name_output, algorithm, doppler=False,
-           continuum=False, prefix=None, nproc=1):
+           continuum=False, prefix=None, nproc=1, no_cleanup=False):
 
     print(
         f'\n'
@@ -177,8 +177,10 @@ def postel(directory, crln, crlt, name_output, algorithm, doppler=False,
                        check=True, shell=True)
 
     print(f'File {name_output} written')
+
     # Cleanup
-    if os.path.exists(name_output):
+
+    if not no_cleanup and os.path.exists(name_output):
         shutil.rmtree(frames_dir)
 
 
@@ -252,6 +254,12 @@ if __name__ == '__main__':
             help='Enable limb darkening correction (default: False)'
         )
 
+        parser.add_argument(
+            '--no-cleanup',
+            action='store_true',
+            help='Do not remove intermediate files (default: False)'
+        )
+
         return parser.parse_args()
 
     # ------------------------------------------------------------------
@@ -267,5 +275,6 @@ if __name__ == '__main__':
         doppler=args.dopp,
         continuum=args.int,
         prefix=args.prefix,
-        nproc=args.nproc
+        nproc=args.nproc,
+        no_cleanup=args.no_cleanup
     )

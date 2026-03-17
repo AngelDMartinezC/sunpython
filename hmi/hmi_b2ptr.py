@@ -7,7 +7,7 @@ field from B(inclination, azimuth_dis)
 
 def hmi_b2ptr(field, inclination, azimuth_dis, bp_output='hmi.Bp_720s.fits',
               bt_output='hmi.Bt_720s.fits', br_output='hmi.Br_720s.fits',
-              save=False):
+              save=False, phi=None, lam=None):
     '''
     Convert HMI vector field from native components (field, inclination,
     azimuth_dis) into spherical components (Bp, Bt, Br).
@@ -45,18 +45,18 @@ def hmi_b2ptr(field, inclination, azimuth_dis, bp_output='hmi.Bp_720s.fits',
     ):
         raise AssertionError('The sizes are not the same')
 
-    b_vec = np.array([field_data, inclination.data, azimuth_dis.data])
+    # b_vec = np.array([field_data, inclination.data, azimuth_dis.data])
 
     # Get dimmensions
-    _, nx, ny = b_vec.shape
+    nx, ny = field_data.shape
 
     # ----------------------------
     # Convert to B_xi, B_eta, B_zeta
     # Eq. (1) of Sun (2013)
     # ----------------------------
-    b_abs = b_vec[0, :, :]
-    gamma = np.deg2rad(b_vec[1, :, :])  # inclination
-    psi = np.deg2rad(b_vec[2, :, :])   # azimuth_dis
+    b_abs = field_data
+    gamma = np.deg2rad(inclination.data)  # inclination
+    psi = np.deg2rad(azimuth_dis.data)   # azimuth_dis
 
     b_xi = -b_abs*np.sin(gamma)*np.sin(psi)
     b_eta = b_abs*np.sin(gamma)*np.cos(psi)
@@ -66,17 +66,33 @@ def hmi_b2ptr(field, inclination, azimuth_dis, bp_output='hmi.Bp_720s.fits',
     # WCS to Stonyhurst lon/lat
     # ----------------------------
     # Create a dummy map to access SunPy coordinate machinery
-    dummy_data = np.zeros((nx, ny))
-    smap = Map(dummy_data, header)
+    # dummy_data = np.zeros((nx, ny))
+    # smap = Map(dummy_data, header)
 
-    # meshgrid order chosen to match SunPy pixel convention for HMI maps
-    hpc = smap.pixel_to_world(
-        *np.meshgrid(np.arange(ny), np.arange(nx))*u.pix)
+    # # meshgrid order chosen to match SunPy pixel convention for HMI maps
+    # hpc = smap.pixel_to_world(
+    #     *np.meshgrid(np.arange(ny), np.arange(nx))*u.pix)
 
-    hgs = hpc.transform_to(frames.HeliographicStonyhurst)
+    # hgs = hpc.transform_to(frames.HeliographicStonyhurst)
 
-    phi = hgs.lon.to(u.rad).value  # longitude
-    lam = hgs.lat.to(u.rad).value  # latitude
+    if phi is None or lam is None:
+        dummy_data = np.zeros((nx, ny))
+        smap = Map(dummy_data, header)
+        hpc = smap.pixel_to_world(
+            *np.meshgrid(np.arange(ny), np.arange(nx))*u.pix)
+        hgs = hpc.transform_to(frames.HeliographicStonyhurst)
+        phi = hgs.lon.to_value(u.rad)
+        lam = hgs.lat.to_value(u.rad)
+
+        # from astropy.wcs import WCS
+        # w = WCS(header)
+        # x, y = np.meshgrid(np.arange(ny), np.arange(nx))
+        # lon, lat = w.pixel_to_world_values(x, y)
+        # phi = lon
+        # lam = lat
+
+    # phi = hgs.lon.to(u.rad).value  # longitude
+    # lam = hgs.lat.to(u.rad).value  # latitude
 
     # if return_lonlat:
     #     lonlat = np.zeros((2, nx, ny))
@@ -86,8 +102,8 @@ def hmi_b2ptr(field, inclination, azimuth_dis, bp_output='hmi.Bp_720s.fits',
     # ----------------------------
     # Angles from header
     # ----------------------------
-    b = np.deg2rad(header['CRLT_OBS'])   # disk-center latitude
     p = -np.deg2rad(header['CROTA2'])    # p-angle (note minus!)
+    b = np.deg2rad(header['CRLT_OBS'])   # disk-center latitude
 
     sinb, cosb = np.sin(b), np.cos(b)
     sinp, cosp = np.sin(p), np.cos(p)
@@ -119,17 +135,23 @@ def hmi_b2ptr(field, inclination, azimuth_dis, bp_output='hmi.Bp_720s.fits',
     # bptr[1, :, :] = k21*b_xi + k22*b_eta + k23*b_zeta  # Bt (south)
     # bptr[2, :, :] = k11*b_xi + k12*b_eta + k13*b_zeta  # Br (radial)
 
-    # Here we do: Bptr[i, x ,y] = K[i, j, x, y] * B[j, x, y]
-    # Order: (Bp, Bt, Br) = (west, south, radial)
-    B = np.stack((b_xi, b_eta, b_zeta), axis=0)
-    K = np.stack((
-        np.stack((k31, k32, k33), axis=0),
-        np.stack((k21, k22, k23), axis=0),
-        np.stack((k11, k12, k13), axis=0),
-    ), axis=0)
+    # # Here we do: Bptr[i, x ,y] = K[i, j, x, y] * B[j, x, y]
+    # # Order: (Bp, Bt, Br) = (west, south, radial)
+    # B = np.stack((b_xi, b_eta, b_zeta), axis=0)
+    # K = np.stack((
+    #     np.stack((k31, k32, k33), axis=0),
+    #     np.stack((k21, k22, k23), axis=0),
+    #     np.stack((k11, k12, k13), axis=0),
+    # ), axis=0)
 
-    # Einstein summation notation
-    bptr = np.einsum('ijxy,jxy->ixy', K, B)
+    # # Einstein summation notation
+    # bptr = np.einsum('ijxy,jxy->ixy', K, B)
+
+    Bp = k31*b_xi + k32*b_eta + k33*b_zeta
+    Bt = k21*b_xi + k22*b_eta + k23*b_zeta
+    Br = k11*b_xi + k12*b_eta + k13*b_zeta
+
+    bptr = np.stack((Bp, Bt, Br))
 
     nan_mask = ~np.isfinite(bptr)
     bptr[nan_mask] = blank
@@ -149,7 +171,7 @@ def hmi_b2ptr(field, inclination, azimuth_dis, bp_output='hmi.Bp_720s.fits',
     # if return_lonlat:
     #     return bptr, lonlat
 
-    return bptr
+    return bptr, phi, lam
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +256,7 @@ if __name__ == '__main__':
     map_azimuth = Map(args.azimuth_disambig)
 
     # ---- compute Bp, Bt, Br ----
-    bptr = hmi_b2ptr(
+    bptr, phi, lam = hmi_b2ptr(
         map_field,
         map_inclination,
         map_azimuth,
