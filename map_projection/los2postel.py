@@ -160,7 +160,8 @@ def los2postel(map_input, crln, crlt, naxis=(1024, 1024),
             exptime = map_input.meta.get('EXPTIME',
                                          map_input.meta.get('XPOSURE', None))
             if exptime is not None:
-                map_out.data[:, :] = map_out.data[:, :]/exptime
+                if exptime != 0:
+                    map_out.data[:, :] = map_out.data[:, :]/exptime
 
     # Prefer CADENCE, else TRECSTEP
     if 'CADENCE' in map_input.meta:

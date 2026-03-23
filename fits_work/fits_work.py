@@ -166,12 +166,18 @@ def load_map(map_input, bitpix=None, get_scale=False):
         if meta['BUNIT'] == 'DN':
             exptime = meta.get('EXPTIME', meta.get('XPOSURE', None))
             if exptime is not None:
-                data = data/exptime
+                if exptime == 0:
+                    data = data
+                else:
+                    data = data/exptime
     if 'PIXLUNIT' in meta:
         if meta['PIXLUNIT'] == 'DN':
             exptime = meta.get('EXPTIME', meta.get('XPOSURE', None))
             if exptime is not None:
-                data = data/exptime
+                if exptime == 0:
+                    data = data
+                else:
+                    data = data/exptime
 
     if abs(bitpix) in [8, 16, 32]:
         if blank0 is None:
