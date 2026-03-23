@@ -7,3 +7,7 @@ map_cut/__pycache__/
 map_projection/__pycache__/
 timedistance/__pycache__/
 .DS_Store
+hmi/__pycache__/__init__.cpython-313.pyc
+hmi/__pycache__/hmi_b2ptr.cpython-313.pyc
+hmi/__pycache__/hmi_disambig.cpython-313.pyc
+hmi/__pycache__/limbcorrect.cpython-313.pyc
