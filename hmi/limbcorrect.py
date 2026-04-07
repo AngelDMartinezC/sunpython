@@ -56,7 +56,7 @@ def limbcorrect(map_input, name_output=None, save=False):
         cv = 1.5788029e-6
         dv = -1.9359644e-10
         ev = 1.1444469e-14
-        fv = -2.599494e-19
+        fv = -2.59494e-19
         a = np.array([av, bv, cv, dv, ev, fv])
         vl = sum(a*pll)
         return vl
@@ -71,7 +71,11 @@ def limbcorrect(map_input, name_output=None, save=False):
     wavelnth = header['WAVELNTH']  # Wavelenght
     # crval1 = header['CRVAL1']  # X center in arcsec
     # crval2 = header['CRVAL2']  # Y center in arcsec
-    radius = header['RSUN_OBS']/header['CDELT1']  # Sun radius in pixels
+    if 'RSUN_OBS' in header:
+        radius = header['RSUN_OBS']/header['CDELT1']  # Sun radius in pixels
+    elif 'RSUN_ARC' in header:
+        radius = header['RSUN_ARC']/header['CDELT1']  # Sun radius in pixels
+
     naxis1 = header['NAXIS1']  # X array size
     naxis2 = header['NAXIS2']  # X array size
 
@@ -114,13 +118,13 @@ def limbcorrect(map_input, name_output=None, save=False):
     # HACK! Here I'm writing twice depending on wheather I want to save the
     # data or I want to use it -and therefore read blanks-.
     if save:
-        imgout[out] = -1000  # Make zero outside arcsin domain
-        map_out = writefits(imgout, header, name_output, 32, bscale, bzero,
+        imgout[out] = bzero  # Make zero outside arcsin domain
+        map_out = writefits(imgout, header, name_output, 16, bscale, bzero,
                             blank, save=save)
         imgout[out] = np.nan
     else:
         imgout[out] = np.nan
-        map_out = writefits(imgout, header, name_output, 32, bscale, bzero,
+        map_out = writefits(imgout, header, name_output, 16, bscale, bzero,
                             blank, save=False)
 
     return map_out
