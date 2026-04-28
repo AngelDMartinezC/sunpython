@@ -145,7 +145,8 @@ if __name__ == '__main__':
     name_input = sys.argv[1]
     name_output = sys.argv[2]
 
-    from astropy.io import fits
-    map_input = fits.open(name_input)
+    # from astropy.io import fits
+    from sunpy.map import Map
+    map_input = Map(name_input)
 
     limbcorrect(map_input, name_output, save=True)

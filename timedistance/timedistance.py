@@ -194,7 +194,7 @@ class TimeDistance:
 
     # def slider(self, vmin=None, vmax=None, fig=None, **kwargs):
 
-    def slider(self, **kwargs):
+    def slider(self, vmin=None, vmax=None, **kwargs):
 
         from matplotlib.widgets import TextBox
 
@@ -270,12 +270,12 @@ class TimeDistance:
             im_plot.set_extent(ext)
             fig.canvas.draw_idle()
 
-        # if vmin is None:
-        #     vmin = float(np.min(first_image[0]))
-        # if vmax is None:
-        #     vmax = float(np.max(first_image[0]))
-        vmin = -300
-        vmax = 300
+        if vmin is None:
+            vmin = 0.5*float(np.min(first_image[0]))
+        if vmax is None:
+            vmax = 0.5*float(np.max(first_image[0]))
+        # vmin = -300
+        # vmax = 300
 
         def submit_cbar(var):
             value = [tb.text for tb in [text_box_min, text_box_max]]
