@@ -283,5 +283,5 @@ if __name__ == '__main__':
         prefix=args.prefix,
         nproc=args.nproc,
         no_cleanup=args.no_cleanup,
-        secant=secant
+        secant=args.secant
     )
