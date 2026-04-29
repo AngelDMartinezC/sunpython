@@ -240,6 +240,12 @@ if __name__ == '__main__':
             help='Prefix of fits files to be projected'
         )
 
+        parser.add_argument(
+            '--secant',
+            action='store_true',
+            help='Apply secant correction to Doppler map'
+        )
+
         group = parser.add_mutually_exclusive_group()
 
         group.add_argument(
@@ -276,5 +282,6 @@ if __name__ == '__main__':
         continuum=args.int,
         prefix=args.prefix,
         nproc=args.nproc,
-        no_cleanup=args.no_cleanup
+        no_cleanup=args.no_cleanup,
+        secant=secant
     )
