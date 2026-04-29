@@ -36,8 +36,52 @@ def correct_solar_rotation(map_input):
     return doppler_clean
 
 
+def apply_secant_correction(map_input):
+    """
+    Multiply Doppler velocity by sec(theta) = 1 / mu
+    where mu = cos(theta), approximated from the radial
+    distance to disk center.
+
+    Parameters
+    ----------
+
+    map_input : sunpy.map.Map
+
+    Returns
+    -------
+
+    corrected_map : sunpy.map.Map
+    """
+
+    import numpy as np
+    from sunpy.map import Map
+
+    data = map_input.data.copy()
+    ny, nx = data.shape
+    y, x = np.mgrid[:ny, :nx]
+    x = x - nx / 2
+    y = y - ny / 2
+
+    r = np.sqrt(x**2 + y**2)
+
+    # solar radius in pixels
+    rsun_pix = map_input.rsun_obs.to_value() / abs(map_input.scale[0].to_value())
+    rho = r / rsun_pix
+
+    # avoid values outside disk
+    rho[rho >= 1] = np.nan
+
+    mu = np.sqrt(1 - rho**2)
+    sec_theta = 1.0 / mu
+    corrected_data = data * sec_theta
+    corrected_map = Map(corrected_data, map_input.meta)
+
+    return corrected_map
+
+
 def los2postel(map_input, crln, crlt, naxis=(1024, 1024),
                daxis=(0.0005, 0.0005), name_output=None, doppler=False,
+               secant=False,
                continuum=False, algorithm='interpolation',
                xy_ref=(None, None), save=False):
     '''
@@ -256,6 +300,9 @@ def los2postel(map_input, crln, crlt, naxis=(1024, 1024),
     if doppler:
         map_out = correct_solar_rotation(map_out)
 
+    if secant:
+        map_out = apply_secant_correction(map_out)
+
     if save:
         map_out = writefits(map_out.data, map_out.meta, name_output,
                             bitpix, bscale, bzero, blank, save=save)
@@ -312,6 +359,12 @@ if __name__ == '__main__':
                 'Default: interpolation')
         )
 
+        parser.add_argument(
+            '--secant',
+            action='store_true',
+            help='Apply secant correction to Doppler map'
+        )
+
         group = parser.add_mutually_exclusive_group()
 
         group.add_argument(
@@ -346,5 +399,6 @@ if __name__ == '__main__':
         doppler=args.dopp,
         name_output=args.output,
         continuum=args.int,
+        secant=args.secant,
         save=True
     )
