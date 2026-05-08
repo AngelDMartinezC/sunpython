@@ -4,11 +4,121 @@ Code to convert from a Line-Of-Sight projected map into Postel.
 The output is a 1024
 '''
 
+def correct_solar_rotation(map_input, sign=-1, limb_cut=0.98, mu_min=0.2):
+    """
+    Remove large-scale Doppler background using a fit that includes:
+      - solar rotation template
+      - constant offset
+      - center-to-limb terms in mu and mu^2
 
-def correct_solar_rotation(map_input):
+    Parameters
+    ----------
+    map_input : sunpy.map.Map or compatible input
+        Input Doppler map.
+    sign : int or float, optional
+        Use +1 or -1 depending on orientation / ~180 deg rotation.
+    limb_cut : float, optional
+        Fit only inside this fraction of solar radius.
+    mu_min : float, optional
+        Exclude very near-limb pixels from the fit.
+
+    Returns
+    -------
+    map_out : sunpy.map.Map
+        Corrected Doppler map.
+    model_map : ndarray
+        Fitted large-scale model.
+    coeffs : ndarray
+        Fit coefficients [a, b, c, d].
+    """
+
+    import numpy as np
+    import astropy.units as u
+    from sunpy.map import Map
+    from sunpy.coordinates import frames
+
+    m = Map(map_input)
+    data = np.array(m.data, dtype=float, copy=True)
+
+    ny, nx = data.shape
+    y, x = np.mgrid[:ny, :nx]
+
+    coords = m.pixel_to_world(x * u.pix, y * u.pix)
+    hg = coords.transform_to(frames.HeliographicStonyhurst)
+
+    lat = hg.lat.to(u.deg).value
+    lon = hg.lon.to(u.deg).value
+    lon_obs = hg.observer.lon.to(u.deg).value
+
+    cmd = lon - lon_obs
+    cmd = (cmd + 180.0) % 360.0 - 180.0
+
+    tx = coords.Tx.to(u.arcsec).value
+    ty = coords.Ty.to(u.arcsec).value
+    rho = np.sqrt(tx**2 + ty**2)
+    rsun = m.rsun_obs.to(u.arcsec).value
+
+    # mu = cos(theta)
+    rr = rho / rsun
+    mu = np.sqrt(np.clip(1.0 - rr**2, 0.0, None))
+
+    # rotation template shape only
+    rot_template = sign * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(cmd))
+
+    # fit region: inside disk, away from extreme limb
+    valid = (
+        np.isfinite(data)
+        & np.isfinite(rot_template)
+        & np.isfinite(mu)
+        & (rho < limb_cut * rsun)
+        & (mu > mu_min)
+    )
+
+    # Design matrix: [rotation, constant, mu, mu^2]
+    X = np.vstack([
+        rot_template[valid],
+        np.ones(np.count_nonzero(valid)),
+        mu[valid],
+        mu[valid]**2,
+    ]).T
+
+    v = data[valid]
+
+    coeffs, _, _, _ = np.linalg.lstsq(X, v, rcond=None)
+    a, b, c, d = coeffs
+
+    model_map = (
+        a * rot_template
+        + b
+        + c * mu
+        + d * mu**2
+    )
+
+    model_map[rho > rsun] = np.nan
+
+    corrected = data - model_map
+    corrected[~np.isfinite(data)] = np.nan
+    corrected[rho > rsun] = np.nan
+
+    map_out = Map(corrected, m.meta)
+    # import matplotlib.pyplot as plt
+    # plt.subplot(121)
+    # plt.imshow(map_input.data, origin='lower', cmap='RdBu_r', vmin=-3000, vmax=3000)
+    # plt.colorbar()
+    # plt.subplot(122)
+    # plt.imshow(corrected, origin='lower', cmap='RdBu_r', vmin=-1000, vmax=1000)
+    # plt.colorbar()
+    # plt.show()
+    # exit()
+    return map_out  # , model_map, coeffs
+
+
+
+def correct_solar_rotation_old(map_input):
 
     import numpy as np
     from sunpy.map import Map
+    import matplotlib.pyplot as plt
 
     map_input = Map(map_input)
     data = map_input.data  # in m/s
@@ -17,8 +127,12 @@ def correct_solar_rotation(map_input):
     data[nan_pos] = 0
 
     y, x = np.mgrid[:ny, :nx]  # pixel coordinates
-    x = x - nx/2  # center coordinates
-    y = y - ny/2
+    # x = x - nx/2  # center coordinates
+    # y = y - ny/2
+    cx = map_input.meta['CRPIX1'] - 1
+    cy = map_input.meta['CRPIX2'] - 1
+    x = x - cx
+    y = y - cy
 
     # Flatten arrays for fitting
     X = np.vstack([x.ravel(), y.ravel(), np.ones(x.size)]).T
@@ -33,6 +147,16 @@ def correct_solar_rotation(map_input):
     # If NaNs where present, put them back
     doppler_derot[nan_pos] = np.nan
     doppler_clean = Map(doppler_derot, map_input.meta)
+
+    plt.subplot(121)
+    plt.imshow(map_input.data, origin='lower', cmap='RdBu_r', vmin=-3000, vmax=3000)
+    plt.colorbar()
+    plt.subplot(122)
+    plt.imshow(doppler_clean.data, origin='lower', cmap='RdBu_r', vmin=-3000, vmax=3000)
+    plt.colorbar()
+    plt.show()
+    exit()
+
     return doppler_clean
 
 
@@ -44,39 +168,43 @@ def apply_secant_correction(map_input):
 
     Parameters
     ----------
-
     map_input : sunpy.map.Map
 
     Returns
     -------
-
     corrected_map : sunpy.map.Map
     """
 
     import numpy as np
     from sunpy.map import Map
+    import matplotlib.pyplot as plt
+    # from sunpy.coordinates.utils import get_heliocentric_angle
+    import astropy.units as u
+    from astropy.coordinates import SkyCoord
 
-    data = map_input.data.copy()
-    ny, nx = data.shape
+    # Get pixel grid
+    ny, nx = map_input.data.shape
     y, x = np.mgrid[:ny, :nx]
-    x = x - nx / 2
-    y = y - ny / 2
 
-    r = np.sqrt(x**2 + y**2)
+    coords = map_input.meta['CRPIX1'] - 1, map_input.meta['CRPIX2'] - 1
+    cdelt1 = map_input.meta['CDELT1']
+    cdelt2 = map_input.meta['CDELT2']
+    cdelt = np.mean([cdelt1, cdelt2])  # Assuming square pixels
 
-    # solar radius in pixels
-    rsun_pix = map_input.rsun_obs.to_value() / abs(map_input.scale[0].to_value())
-    rho = r / rsun_pix
+    # Angular distance from disk center
+    # Tx, Ty in pixels
+    tx = coords[0]
+    ty = coords[1]
+    rho = np.sqrt((x - tx)**2 + (y - ty)**2)
+    rsun = map_input.rsun_obs.to_value()/cdelt  # arcsec
 
-    # avoid values outside disk
-    rho[rho >= 1] = np.nan
+    # Avoid outside disk
+    rho[rho >= rsun] = np.nan
+    mu = np.sqrt(1 - (rho/rsun)**2)
+    sec = 1.0 / (mu)
+    corrected = map_input.data * sec
 
-    mu = np.sqrt(1 - rho**2)
-    sec_theta = 1.0 / mu
-    corrected_data = data * sec_theta
-    corrected_map = Map(corrected_data, map_input.meta)
-
-    return corrected_map
+    return Map(corrected, map_input.meta)
 
 
 def los2postel(map_input, crln, crlt, naxis=(1024, 1024),
@@ -140,8 +268,16 @@ def los2postel(map_input, crln, crlt, naxis=(1024, 1024),
         message='Keyword name.*greater than 8 characters'
     )
 
+
     # Get information on the bscale, bzero, blank keywords before runtime
     _, _, bitpix, bscale, bzero, blank = load_map(map_input, get_scale=True)
+
+    if doppler:
+        # map_input = correct_solar_rotation(map_input)
+        map_input = correct_solar_rotation(map_input)
+
+    if secant:
+        map_input = apply_secant_correction(map_input)
 
     # Calculate sun radius in meters
     rsun_obs = map_input.rsun_obs.to(u.rad)  # From arcsec to rad
@@ -296,12 +432,6 @@ def los2postel(map_input, crln, crlt, naxis=(1024, 1024),
     map_out.meta['CTYPE3'] = 'TIME'
 
     map_out.plot_settings = map_input.plot_settings
-
-    if doppler:
-        map_out = correct_solar_rotation(map_out)
-
-    if secant:
-        map_out = apply_secant_correction(map_out)
 
     if save:
         map_out = writefits(map_out.data, map_out.meta, name_output,

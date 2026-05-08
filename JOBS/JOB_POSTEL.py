@@ -13,7 +13,7 @@ def _postel_worker(args):
     '''
     (
         i, name_input, frames_dir,
-        crln, crlt, doppler, continuum, algorithm
+        crln, crlt, doppler, continuum, algorithm, secant
     ) = args
 
     from sunpy.map import Map
@@ -30,6 +30,7 @@ def _postel_worker(args):
         doppler=doppler,
         continuum=continuum,
         algorithm=algorithm,
+        secant=secant,
         save=True,
     )
 
@@ -37,6 +38,7 @@ def _postel_worker(args):
 
 
 def postel(directory, crln, crlt, name_output, algorithm, doppler=False,
+           secant=False,
            continuum=False, prefix=None, nproc=1, no_cleanup=False):
 
     print(
@@ -48,6 +50,7 @@ def postel(directory, crln, crlt, name_output, algorithm, doppler=False,
         f'    OUTPUT:                {name_output}\n'
         f'    algorithm:             {algorithm}\n'
         f'    doppler correction:    {doppler}\n'
+        f'    secant correction:     {secant}\n'
         f'    limb dark correction:  {continuum}\n'
         f'    file prefix:           {prefix}\n'
     )
@@ -62,6 +65,11 @@ def postel(directory, crln, crlt, name_output, algorithm, doppler=False,
     from concurrent.futures import ProcessPoolExecutor, as_completed
     from multiprocessing import set_start_method  # , Pool
     from astropy.io import fits
+
+    if secant and not doppler:
+        raise ValueError(
+            "--secant can only be used together with --dopp"
+        )
 
     set_start_method("spawn")
 
@@ -107,7 +115,7 @@ def postel(directory, crln, crlt, name_output, algorithm, doppler=False,
     print(f'Running Postel projection using {n_workers} processes\n')
     tasks = [(
         i, list_frames[i], frames_dir,
-        crln, crlt, doppler, continuum, algorithm
+        crln, crlt, doppler, continuum, algorithm, secant
         )
         for i in range(n_files)
     ]
@@ -117,7 +125,7 @@ def postel(directory, crln, crlt, name_output, algorithm, doppler=False,
         for i, fname in enumerate(list_frames):
             _postel_worker((
                 i, fname, frames_dir,
-                crln, crlt, doppler, continuum, algorithm
+                crln, crlt, doppler, continuum, algorithm, secant
             ))
             print(f'Projection of {fname}. File {i+1} of {n_files}')
     else:
