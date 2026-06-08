@@ -29,6 +29,14 @@ def hpxy2xy(map_input, hpx, hpy):
     import astropy.units as u
     from astropy.coordinates import SkyCoord
     from sunpy.coordinates import frames
+    import warnings
+    import logging
+
+    logging.getLogger("sunpy").setLevel(logging.WARNING)
+
+    # Suppress all SunPy warnings
+    warnings.filterwarnings("ignore", module="sunpy")
+
 
     # Calculate sun radius in meters
     rsun_obs = map_input.rsun_obs.to(u.rad)

@@ -90,6 +90,13 @@ if __name__ == '__main__':
         sys.exit(f'File "{args.input_fits}" does not exist.')
 
     # ------------------------------------------------------------------
+    # import warnings
+    # import logging
+    # logging.getLogger("sunpy").setLevel(logging.WARNING)
+    # # Suppress all SunPy warnings
+    # warnings.filterwarnings("ignore", module="sunpy")
+    from sunpy import log
+    log.setLevel("WARNING")
 
     from sunpy.map import Map
 

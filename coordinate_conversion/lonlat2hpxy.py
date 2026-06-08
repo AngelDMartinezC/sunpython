@@ -31,6 +31,9 @@ def lonlat2hpxy(map_input, crln, crlt):
     from astropy.coordinates import SkyCoord
     from sunpy.coordinates import frames
     import warnings
+    import logging
+
+    logging.getLogger("sunpy").setLevel(logging.WARNING)
 
     # Suppress all SunPy warnings
     warnings.filterwarnings("ignore", module="sunpy")
