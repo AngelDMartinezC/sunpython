@@ -26,6 +26,7 @@ files=(
     coordinate_conversion/lonlat2xy.py
     coordinate_conversion/xy2hpxy.py
     coordinate_conversion/xy2lonlat.py
+    coordinate_conversion/get_mu.py
 )
 
 for file in "${files[@]}"
