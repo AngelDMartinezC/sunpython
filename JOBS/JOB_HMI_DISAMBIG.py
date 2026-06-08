@@ -9,9 +9,10 @@ be written in the directory of the third argument.
 def process_pair(args):
     i, n_files, name_azi, name_dis, dir_output, method = args
 
+    from datetime import datetime
+
     from sunpy.map import Map
     from sunpython.hmi import hmi_disambig
-    from datetime import datetime
     # import os
 
     map_azi_i = Map(name_azi)
@@ -84,8 +85,8 @@ def disambiguate(dir_azimuth, dir_disambig,
 if __name__ == '__main__':
 
     import argparse
-    import sys
     import os
+    import sys
 
     # Bash checks
     def parse_args():
@@ -159,4 +160,3 @@ if __name__ == '__main__':
         method=args.method,
         nproc=args.nproc
     )
-
