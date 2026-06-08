@@ -1,15 +1,17 @@
+#!/usr/bin/env python
+
 import logging
 import sys
 import warnings
 import astropy.units as u
 import numpy as np
+from sunpy.map import Map
 from astropy.coordinates import SkyCoord
 logging.getLogger("sunpy").setLevel(logging.WARNING)
 # Suppress all SunPy warnings
 warnings.filterwarnings("ignore", module="sunpy")
 from sunpy.coordinates import frames
 from sunpy.coordinates.utils import get_heliocentric_angle
-from sunpy.map import Map
 
 smap_str = sys.argv[1]
 hpx = float(sys.argv[2])
