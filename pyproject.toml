@@ -8,4 +8,7 @@ version = "0.1.0"
 dependencies = [
     "sunpy",
     "polarTransform",
+    "reproject",
+    "joblib",
+    "astropy"
 ]
