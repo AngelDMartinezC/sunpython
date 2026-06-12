@@ -113,53 +113,6 @@ def correct_solar_rotation(map_input, sign=-1, limb_cut=0.98, mu_min=0.2):
     return map_out  # , model_map, coeffs
 
 
-
-def correct_solar_rotation_old(map_input):
-
-    import numpy as np
-    from sunpy.map import Map
-    import matplotlib.pyplot as plt
-
-    map_input = Map(map_input)
-    data = map_input.data  # in m/s
-    ny, nx = data.shape
-    nan_pos = np.isnan(data)
-    data[nan_pos] = 0
-
-    y, x = np.mgrid[:ny, :nx]  # pixel coordinates
-    # x = x - nx/2  # center coordinates
-    # y = y - ny/2
-    cx = map_input.meta['CRPIX1'] - 1
-    cy = map_input.meta['CRPIX2'] - 1
-    x = x - cx
-    y = y - cy
-
-    # Flatten arrays for fitting
-    X = np.vstack([x.ravel(), y.ravel(), np.ones(x.size)]).T
-    v = data.ravel()
-
-    # Solve for plane coefficients
-    coeffs, _, _, _ = np.linalg.lstsq(X, v, rcond=None)
-    a, b, c = coeffs
-    plane = a*x + b*y + c
-    doppler_derot = data - plane
-
-    # If NaNs where present, put them back
-    doppler_derot[nan_pos] = np.nan
-    doppler_clean = Map(doppler_derot, map_input.meta)
-
-    plt.subplot(121)
-    plt.imshow(map_input.data, origin='lower', cmap='RdBu_r', vmin=-3000, vmax=3000)
-    plt.colorbar()
-    plt.subplot(122)
-    plt.imshow(doppler_clean.data, origin='lower', cmap='RdBu_r', vmin=-3000, vmax=3000)
-    plt.colorbar()
-    plt.show()
-    exit()
-
-    return doppler_clean
-
-
 def apply_secant_correction(map_input):
     """
     Multiply Doppler velocity by sec(theta) = 1 / mu
